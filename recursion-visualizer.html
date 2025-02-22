@@ -18,7 +18,7 @@
             gap: 20px;
             overflow-x: auto;
             padding: 10px;
-            min-height: 150px;
+            min-height: 200px;
         }
 
         .code-box {
@@ -36,14 +36,12 @@
             transition: opacity 0.5s ease-in-out;
         }
 
-        .arrow {
-            width: 20px;
-            height: 10px;
-            border-left: 3px solid black;
-            border-top: 3px solid black;
-            transform: rotate(-45deg);
-            position: relative;
-            margin-left: -15px;
+        .highlight {
+            background-color: yellow;
+            color: black;
+            font-weight: bold;
+            display: inline-block;
+            width: 100%;
         }
 
         .completed {
@@ -69,17 +67,17 @@
     <div class="visual-container" id="visual-container">
         <div class="code-box">
             <strong>Original Function Code:</strong><br>
-            let count = 0;<br>
-            function recursiveFunction() {<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;console.log("Hello", count);<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;count++;<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;if (count &lt; 5) {<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;recursiveFunction();<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;console.log("Apoorva", count);<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;} else {<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;count = 1;<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;}<br>
-            }
+            <span class="code-line">let count = 0;</span><br>
+            <span class="code-line">function recursiveFunction() {</span><br>
+            <span class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;console.log("Hello", count);</span><br>
+            <span class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;count++;</span><br>
+            <span class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;if (count &lt; 5) {</span><br>
+            <span class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;recursiveFunction();</span><br>
+            <span class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;console.log("Apoorva", count);</span><br>
+            <span class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;} else {</span><br>
+            <span class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;console.log("Recursion Ends");</span><br>
+            <span class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+            <span class="code-line">}</span>
         </div>
     </div>
 
@@ -87,60 +85,93 @@
 
     <script>
         let count = 0;
-        let callStack = []; // Track function calls
-        let isUnwinding = false; // Track whether we're removing boxes
+        let callStack = [];
+        let isUnwinding = false;
+        let currentStep = 0;
+        let returnStack = [];
 
         function nextStep() {
             let container = document.getElementById("visual-container");
 
             if (isUnwinding) {
-                // Handle unwinding process (removing boxes one by one)
-                if (callStack.length === 0) {
-                    isUnwinding = false; // Reset for future calls
-                    return;
+                if (returnStack.length > 0) {
+                    let lastBox = returnStack.pop();
+                    highlightNextLine(lastBox, 4); // Highlight console.log("Apoorva", count);
+                } else if (callStack.length > 0) {
+                    let lastBox = callStack.pop();
+                    lastBox.classList.add("fade-out");
+                    setTimeout(() => lastBox.remove(), 500);
                 }
-
-                let lastBox = callStack.pop();
-                lastBox.classList.add("fade-out");
-                setTimeout(() => lastBox.remove(), 500);
                 return;
             }
 
-            // Stop adding calls once recursion completes
-            if (count >= 5) {
+            if (currentStep === 0) {
+                let box = document.createElement("div");
+                box.classList.add("code-box");
+                box.innerHTML = `<span class="code-line">let count = ${count};</span><br>
+                    <span class="code-line">function recursiveFunction() {</span><br>
+                    <span class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;console.log("Hello", ${count});</span><br>
+                    <span class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;count++;</span><br>
+                    <span class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;if (count &lt; 5) {</span><br>
+                    <span class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;recursiveFunction();</span><br>
+                    <span class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;console.log("Apoorva", ${count});</span><br>
+                    <span class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;} else {</span><br>
+                    <span class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;console.log("Recursion Ends");</span><br>
+                    <span class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+                    <span class="code-line">}</span>`;
+
+                container.appendChild(box);
+                callStack.push(box);
+                returnStack.push(box);
+                highlightNextLine(box, 0);
+            } else {
+                highlightNextLine(callStack[callStack.length - 1], currentStep);
+            }
+        }
+
+        function highlightNextLine(box, step) {
+            let lines = box.getElementsByClassName("code-line");
+
+            for (let line of lines) {
+                line.classList.remove("highlight");
+            }
+
+            if (step < 3) {
+                lines[step + 2].classList.add("highlight");
+                currentStep++;
+            } else if (step === 3) {
+                lines[step + 2].classList.add("highlight");
+
+                count++;
+                if (count < 5) {
+                    currentStep = 0;
+                    nextStep();
+                } else {
+                    highlightNextLine(box, 5); // Highlight "Recursion Ends"
+                    isUnwinding = true;
+                }
+            } else if (step === 5) { 
+                lines[8].classList.add("highlight"); // "console.log("Recursion Ends");"
+                setTimeout(() => {
+                    lines[8].classList.remove("highlight");
+                    box.classList.add("completed");
+                    removeFunctionBlock(box); // Remove the function box when recursion ends
+                }, 500);
                 isUnwinding = true;
-                return;
+            } else if (step === 4) {
+                lines[6].classList.add("highlight"); // "console.log("Apoorva", count);"
+                setTimeout(() => {
+                    lines[6].classList.remove("highlight");
+                    box.classList.add("completed");
+                    removeFunctionBlock(box)
+                }, 500);
             }
+        }
 
-            // Create function box
-            let box = document.createElement("div");
-            box.classList.add("code-box");
-            box.innerHTML = `let count = ${count};<br>
-                function recursiveFunction() {<br>
-                &nbsp;&nbsp;&nbsp;&nbsp;console.log("Hello", ${count});<br>
-                &nbsp;&nbsp;&nbsp;&nbsp;count++;<br>
-                &nbsp;&nbsp;&nbsp;&nbsp;if (count &lt; 5) {<br>
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;recursiveFunction();<br>
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;console.log("Apoorva", ${count});<br>
-                &nbsp;&nbsp;&nbsp;&nbsp;} else {<br>
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;count = 1;<br>
-                &nbsp;&nbsp;&nbsp;&nbsp;}<br>
-                }`;
-
-            container.appendChild(box);
-            callStack.push(box);
-            count++;
-
-            // Create an arrow before the new box
-            if (callStack.length > 1) {
-                let arrow = document.createElement("div");
-                arrow.classList.add("arrow");
-                container.appendChild(arrow);
-            }
-
-            // Mark box as completed in the next step
+        function removeFunctionBlock(box) {
             setTimeout(() => {
-                box.classList.add("completed");
+                box.classList.add("fade-out");
+                setTimeout(() => box.remove(), 500);
             }, 500);
         }
     </script>
