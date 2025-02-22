@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recursive Function Visualizer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+
+        .visual-container {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 20px;
+            overflow-x: auto;
+            padding: 10px;
+            min-height: 150px;
+        }
+
+        .code-box {
+            background-color: #222;
+            color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            width: 280px;
+            min-width: 280px;
+            position: relative;
+            text-align: left;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .arrow {
+            width: 20px;
+            height: 10px;
+            border-left: 3px solid black;
+            border-top: 3px solid black;
+            transform: rotate(-45deg);
+            position: relative;
+            margin-left: -15px;
+        }
+
+        .completed {
+            border: 2px solid limegreen;
+        }
+
+        .fade-out {
+            opacity: 0;
+        }
+
+        button {
+            padding: 10px 15px;
+            font-size: 16px;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Recursive Function Visualizer</h2>
+
+    <div class="visual-container" id="visual-container">
+        <div class="code-box">
+            <strong>Original Function Code:</strong><br>
+            let count = 0;<br>
+            function recursiveFunction() {<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;console.log("Hello", count);<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;count++;<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;if (count &lt; 5) {<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;recursiveFunction();<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;console.log("Apoorva", count);<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;} else {<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;count = 1;<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+            }
+        </div>
+    </div>
+
+    <button onclick="nextStep()">Next Step</button>
+
+    <script>
+        let count = 0;
+        let callStack = []; // Track function calls
+        let isUnwinding = false; // Track whether we're removing boxes
+
+        function nextStep() {
+            let container = document.getElementById("visual-container");
+
+            if (isUnwinding) {
+                // Handle unwinding process (removing boxes one by one)
+                if (callStack.length === 0) {
+                    isUnwinding = false; // Reset for future calls
+                    return;
+                }
+
+                let lastBox = callStack.pop();
+                lastBox.classList.add("fade-out");
+                setTimeout(() => lastBox.remove(), 500);
+                return;
+            }
+
+            // Stop adding calls once recursion completes
+            if (count >= 5) {
+                isUnwinding = true;
+                return;
+            }
+
+            // Create function box
+            let box = document.createElement("div");
+            box.classList.add("code-box");
+            box.innerHTML = `let count = ${count};<br>
+                function recursiveFunction() {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;console.log("Hello", ${count});<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;count++;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;if (count &lt; 5) {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;recursiveFunction();<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;console.log("Apoorva", ${count});<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;} else {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;count = 1;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                }`;
+
+            container.appendChild(box);
+            callStack.push(box);
+            count++;
+
+            // Create an arrow before the new box
+            if (callStack.length > 1) {
+                let arrow = document.createElement("div");
+                arrow.classList.add("arrow");
+                container.appendChild(arrow);
+            }
+
+            // Mark box as completed in the next step
+            setTimeout(() => {
+                box.classList.add("completed");
+            }, 500);
+        }
+    </script>
+
+</body>
+</html>

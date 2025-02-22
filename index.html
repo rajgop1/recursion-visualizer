@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JS Execution Context Visualizer</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
+        h1, h2 { text-align: center; }
+        #container { display: flex; gap: 20px; }
+        #editorContainer, #visualizer { flex: 1; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        pre { background: #eee; padding: 10px; border-radius: 5px; white-space: pre-wrap; }
+        .highlight { background: yellow; display: inline-block; width: 100%; }
+        button { display: inline-block; padding: 10px; margin-top: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #0056b3; }
+        .box { padding: 10px; background: #e3f2fd; border-left: 4px solid #007bff; margin: 10px 0; border-radius: 5px; opacity: 0; transform: translateY(10px); transition: all 0.5s ease-in-out; }
+        .visible { opacity: 1; transform: translateY(0); }
+        .tdz { color: red; font-style: italic; }
+        #controls { text-align: center; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>JS Execution Context Visualizer</h1>
+    <div id="container">
+        <div id="editorContainer">
+            <h2>Code Editor</h2>
+            <pre id="editor"></pre>
+            <div id="controls">
+                <button id="prevBtn" disabled>Previous</button>
+                <button id="nextBtn">Next</button>
+            </div>
+        </div>
+        <div id="visualizer">
+            <h2>Execution Context</h2>
+            <h3>Memory Allocation</h3>
+            <div id="memory"></div>
+            <h3>Call Stack</h3>
+            <div id="callStack"></div>
+        </div>
+    </div>
+    
+    <script>
+        const codeLines = [
+            "function greet(name) {",
+            "    let message = \"Hello \" + name;",
+            "    return message;",
+            "}",
+            "",
+            "let user = \"Alice\";",
+            "let result = greet(user);",
+            "console.log(result);"
+        ];
+        document.getElementById("editor").innerHTML = codeLines.map(line => `<div>${line}</div>`).join("");
+
+        const steps = [
+            { action: () => addMemoryVar("greet", "Function"), line: 0 },
+            { action: () => addMemoryVar("user", "Uninitialized (TDZ)", "let"), line: 5 },
+            { action: () => addMemoryVar("result", "Uninitialized (TDZ)", "let"), line: 6 },
+            { action: () => updateMemory("user", "Alice"), line: 5 },
+            { action: () => pushCallStack("greet"), line: 6 },
+            { action: () => addMemoryVar("message", "Uninitialized (TDZ)", "let"), line: 1 },
+            { action: () => updateMemory("message", "Hello Alice"), line: 1 },
+            { action: () => updateMemory("result", "Hello Alice"), line: 6 },
+            { action: () => popCallStack(), line: 6 },
+            { action: () => console.log("Execution Complete"), line: 7 }
+        ];
+
+        let currentStep = 0;
+        const memoryDiv = document.getElementById("memory");
+        const callStackDiv = document.getElementById("callStack");
+        const prevBtn = document.getElementById("prevBtn");
+        const nextBtn = document.getElementById("nextBtn");
+        const editorDivs = document.querySelectorAll("#editor div");
+
+        function addMemoryVar(name, value, type = "var") {
+            let div = document.createElement("div");
+            div.className = "box";
+            let displayValue = type === "let" || type === "const" ? '<span class="tdz">Uninitialized (TDZ)</span>' : "undefined";
+            div.innerHTML = `<strong>${name}</strong>: ${value === "Function" ? "Function" : displayValue}`;
+            memoryDiv.appendChild(div);
+            setTimeout(() => div.classList.add("visible"), 100);
+        }
+
+        function updateMemory(name, value) {
+            let elements = memoryDiv.getElementsByClassName("box");
+            for (let el of elements) {
+                if (el.innerHTML.includes(name)) {
+                    el.innerHTML = `<strong>${name}</strong>: ${value}`;
+                    el.style.borderLeft = "4px solid green";
+                }
+            }
+        }
+
+        function pushCallStack(fnName) {
+            let div = document.createElement("div");
+            div.className = "box";
+            div.innerHTML = fnName;
+            callStackDiv.appendChild(div);
+            setTimeout(() => div.classList.add("visible"), 100);
+        }
+
+        function popCallStack() {
+            let elements = callStackDiv.getElementsByClassName("box");
+            if (elements.length > 0) {
+                let lastElement = elements[elements.length - 1];
+                lastElement.classList.remove("visible");
+                setTimeout(() => lastElement.remove(), 500);
+            }
+        }
+
+        function highlightLine(index) {
+            editorDivs.forEach((div, i) => {
+                div.classList.remove("highlight");
+                if (i === index) div.classList.add("highlight");
+            });
+        }
+
+        nextBtn.addEventListener("click", () => {
+            if (currentStep < steps.length) {
+                steps[currentStep].action();
+                highlightLine(steps[currentStep].line);
+                currentStep++;
+                prevBtn.disabled = false;
+                if (currentStep === steps.length) nextBtn.disabled = true;
+            }
+        });
+
+        prevBtn.addEventListener("click", () => {
+            if (currentStep > 0) {
+                memoryDiv.innerHTML = "";
+                callStackDiv.innerHTML = "";
+                currentStep--;
+                for (let i = 0; i < currentStep; i++) steps[i].action();
+                highlightLine(steps[currentStep].line);
+                nextBtn.disabled = false;
+                if (currentStep === 0) prevBtn.disabled = true;
+            }
+        });
+    </script>
+</body>
+</html>
