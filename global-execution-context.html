@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Execution Context Step-by-Step Visualization</title>
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      background-color: #1e1e1e;
+      color: #fff;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 { margin-bottom: 10px; }
+    button {
+      background: #f9ae1c;
+      color: #000;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .container {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .column {
+      width: 30%;
+      min-height: 250px;
+      padding: 15px;
+      background: #2e2e2e;
+      border-radius: 10px;
+      box-shadow: 0px 0px 8px rgba(255, 255, 255, 0.2);
+      text-align: left;
+      transition: box-shadow 0.5s ease-in-out;
+    }
+    .column h2 {
+      text-align: center;
+      border-bottom: 2px solid #f9ae1c;
+      padding-bottom: 8px;
+    }
+    .code-block {
+      background: #3e3e3e;
+      color: #f1f1f1;
+      padding: 8px;
+      border-radius: 5px;
+      font-size: 14px;
+      font-family: monospace;
+      margin: 5px;
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+    }
+    .original-code {
+      width: 80%;
+      background: #252526;
+      color: #c5c5c5;
+      padding: 15px;
+      border-radius: 10px;
+      margin: auto;
+      font-size: 16px;
+      text-align: left;
+      box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.1);
+    }
+    .fade-in { opacity: 1; }
+    .highlight-code {
+      background: #f9ae1c;
+      color: #000;
+    }
+    .function-box {
+      background: #444;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 8px;
+      border: 2px solid #f9ae1c;
+      box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.2);
+    }
+    .function-container {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+    .function-column {
+      width: 48%;
+      padding: 10px;
+      background: #3e3e3e;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Execution Context Visualization</h1>
+  <button onclick="resetSimulation()">Run Simulation</button>
+  <button id="nextStep" onclick="nextStep()">Next Step</button>
+
+  <div class="original-code" id="original-code">
+    <pre>
+console.log(num);
+var num = 3;
+
+function iAmFunction() {
+    var num = 2;
+    console.log(num);
+}
+iAmFunction();
+    </pre>
+  </div>
+
+  <div class="container">
+    <div class="column" id="memory-box">
+      <h2>Memory Allocation</h2>
+      <div id="memory-phase"></div>
+    </div>
+    <div class="column" id="execution-box">
+      <h2>Code Execution</h2>
+      <div id="execution-phase"></div>
+    </div>
+  </div>
+
+  <script>
+    // Global variables to hold simulation elements.
+    let currentStep = 0;
+    let globalVar, functionDeclaration, logNum, assignNum;
+    let functionBox, funcVar, funcAssign, funcLog;
+
+    // Helper to create a code block element.
+    function createCodeBlock(text) {
+      const div = document.createElement("div");
+      div.classList.add("code-block");
+      div.innerText = text;
+      return div;
+    }
+
+    // Helper to animate an element (highlight & fade in).
+    function animate(element) {
+      element.classList.add("fade-in", "highlight-code");
+      setTimeout(() => {
+        element.classList.remove("highlight-code");
+      }, 1000);
+    }
+
+    // Reset simulation: clear containers and reset step counter.
+    function resetSimulation() {
+      currentStep = 0;
+      document.getElementById("memory-phase").innerHTML = "";
+      document.getElementById("execution-phase").innerHTML = "";
+      // Re-enable Next button.
+      document.getElementById("nextStep").disabled = false;
+    }
+
+    // Steps: 0 to 9.
+    function nextStep() {
+      switch (currentStep) {
+        case 0:
+          // Step 1: Global Memory Allocation - var num = undefined;
+          globalVar = createCodeBlock("var num = undefined;");
+          document.getElementById("memory-phase").appendChild(globalVar);
+          animate(globalVar);
+          break;
+        case 1:
+          // Step 2: Global Memory Allocation - function declaration.
+          functionDeclaration = createCodeBlock("iAmFunction: function()");
+          document.getElementById("memory-phase").appendChild(functionDeclaration);
+          animate(functionDeclaration);
+          break;
+        case 2:
+          // Step 3: Global Execution Phase - console.log(num); // undefined
+          logNum = createCodeBlock("console.log(num); // undefined");
+          document.getElementById("execution-phase").appendChild(logNum);
+          animate(logNum);
+          break;
+        case 3:
+          // Step 4: Global Execution Phase - num = 3;
+          assignNum = createCodeBlock("num = 3;");
+          document.getElementById("execution-phase").appendChild(assignNum);
+          animate(assignNum);
+          break;
+        case 4:
+          // Step 5: Update Global Memory: update var num to 3.
+          globalVar.innerText = "var num = 3;";
+          animate(globalVar);
+          break;
+        case 5:
+          // Step 6: Create Function Execution Context Box.
+          functionBox = document.createElement("div");
+          functionBox.classList.add("function-box");
+          functionBox.innerHTML = `
+            <h3>Function Execution</h3>
+            <div class="function-container">
+              <div class="function-column">
+                <h4>Memory</h4>
+                <div id="function-memory"></div>
+              </div>
+              <div class="function-column">
+                <h4>Execution</h4>
+                <div id="function-execution"></div>
+              </div>
+            </div>
+          `;
+          document.getElementById("execution-phase").appendChild(functionBox);
+          break;
+        case 6:
+          // Step 7: Function Memory Allocation - var num = undefined;
+          funcVar = createCodeBlock("var num = undefined;");
+          document.getElementById("function-memory").appendChild(funcVar);
+          animate(funcVar);
+          break;
+        case 7:
+          // Step 8: Function Execution Phase - num = 2;
+          funcAssign = createCodeBlock("num = 2;");
+          document.getElementById("function-execution").appendChild(funcAssign);
+          animate(funcAssign);
+          break;
+        case 8:
+          // Step 9: Update Function Memory: update var num to 2.
+          funcVar.innerText = "var num = 2;";
+          animate(funcVar);
+          break;
+        case 9:
+          // Step 10: Function Execution Phase - console.log(num); // 2
+          funcLog = createCodeBlock("console.log(num); // 2");
+          document.getElementById("function-execution").appendChild(funcLog);
+          animate(funcLog);
+          break;
+        default:
+          // End simulation; disable Next button.
+          document.getElementById("nextStep").disabled = true;
+          break;
+      }
+      currentStep++;
+    }
+  </script>
+
+</body>
+</html>
