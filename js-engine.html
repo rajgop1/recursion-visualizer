@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JS Engine Visualizer</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      background-color: #1e1e1e; 
+      color: #fff; 
+      margin: 0;
+      padding: 20px;
+    }
+    h1 { text-align: center; margin-bottom: 20px; }
+    /* Container for side-by-side layout */
+    .main-container {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    /* Code Display on the Left */
+    .code-container { 
+      background: #2b2b2b; 
+      padding: 15px; 
+      border-radius: 8px; 
+      width: 40%; 
+      box-shadow: 0 0 10px rgba(255,255,255,0.2);
+      white-space: pre-wrap;
+      font-size: 16px;
+      overflow-y: auto;
+      max-height: 80vh;
+    }
+    pre { margin: 0; }
+    .highlight { 
+      background: #444; 
+      padding: 3px; 
+      border-radius: 4px; 
+      display: block;
+    }
+    /* Visualization Panel on the Right */
+    .visualization-container { width: 55%; }
+    .container { 
+      display: flex; 
+      gap: 20px; 
+      margin-top: 10px; 
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    /* Execution Context Card */
+    .context {
+      border: 1px solid #555;
+      margin: 5px;
+      padding: 5px;
+      border-radius: 4px;
+      background: #333;
+    }
+    .context-title {
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 5px;
+    }
+    .context-columns {
+      display: flex;
+      gap: 10px;
+    }
+    .column {
+      flex: 1;
+      background: #222;
+      padding: 5px;
+      border-radius: 4px;
+    }
+    .column-title {
+      font-weight: bold;
+      text-decoration: underline;
+      text-align: center;
+      margin-bottom: 3px;
+      font-size: 14px;
+    }
+    .column-content {
+      font-size: 13px;
+      line-height: 1.3;
+    }
+    /* Boxes for Queues and Event Loop */
+    .box { 
+      width: 240px; 
+      min-height: 200px; 
+      border: 2px solid #888; 
+      padding: 10px; 
+      background: #2b2b2b; 
+      border-radius: 8px; 
+      box-shadow: 0 0 10px rgba(255,255,255,0.2);
+      margin-bottom: 10px;
+    }
+    .title { 
+      font-weight: bold; 
+      margin-bottom: 10px; 
+      text-align: center; 
+    }
+    .queue-item { 
+      background: #28a745; 
+      margin: 5px; 
+      padding: 8px; 
+      text-align: center; 
+      border-radius: 5px; 
+      font-size: 14px;
+    }
+    button { 
+      margin-top: 20px; 
+      padding: 10px 20px; 
+      background: #007acc; 
+      color: white; 
+      border: none; 
+      border-radius: 5px; 
+      cursor: pointer; 
+      font-size: 16px;
+    }
+    button:hover { background: #005f99; }
+  </style>
+</head>
+<body>
+
+  <h1>JavaScript Engine Visualizer</h1>
+
+  <div class="main-container">
+    <!-- Left: Code Display -->
+    <div class="code-container">
+      <pre id="code">
+1  let name = "Apoorva";
+2  console.log("one");
+3  
+4  function y(username = name) {
+5      console.log(username);
+6  }
+7  
+8  y();
+9  
+10 const promiseObj = new Promise((res, rej) => {
+11     let num = Math.random() * 100;
+12     if (num > 50) {
+13         res();
+14     } else {
+15         rej();
+16     }
+17 });
+18 
+19 promiseObj.then(() => {
+20     console.log("resolved ran");
+21 }).catch(() => {
+22     console.log("reject ran");
+23 });
+24 
+25 setTimeout(function xoxo() {
+26     console.log("two");
+27 }, 0);
+28 
+29 y("Rajgopal");
+30 
+31 console.log("three");
+      </pre>
+    </div>
+
+    <!-- Right: Visualization Panel -->
+    <div class="visualization-container">
+      <div class="container">
+        <div class="box" id="callStack">
+          <div class="title">Call Stack</div>
+        </div>
+        <div class="box" id="microtaskQueue">
+          <div class="title">Microtask Queue</div>
+        </div>
+        <div class="box" id="macrotaskQueue">
+          <div class="title">Macrotask Queue</div>
+        </div>
+        <div class="box" id="eventLoop">
+          <div class="title">Event Loop</div>
+        </div>
+      </div>
+      <button id="nextStep">Next Step</button>
+    </div>
+  </div>
+
+  <script>
+    // Save original code lines for accurate highlighting.
+    const codeContainer = document.getElementById("code");
+    const originalCodeLines = codeContainer.innerText.split("\n");
+
+    // Data Structures for Visualization.
+    // Each execution context is an object with a name, and arrays for memory and execution details.
+    let callStack = [];
+    let microtaskQueue = [];
+    let macrotaskQueue = [];
+    let eventLoopTask = ""; // Holds the current event loop task.
+
+    // Simulation steps.
+    let steps = [];
+    let currentStep = 0;
+
+    // Update the UI.
+    function updateUI() {
+      document.getElementById("callStack").innerHTML = "<div class='title'>Call Stack</div>" + 
+        callStack.map(ctx => {
+          return `<div class="context">
+                    <div class="context-title">${ctx.name}</div>
+                    <div class="context-columns">
+                      <div class="column">
+                        <div class="column-title">Memory</div>
+                        <div class="column-content">${ctx.memory.join("<br>") || "-"}</div>
+                      </div>
+                      <div class="column">
+                        <div class="column-title">Execution</div>
+                        <div class="column-content">${ctx.execution.join("<br>") || "-"}</div>
+                      </div>
+                    </div>
+                  </div>`;
+        }).join("");
+      document.getElementById("microtaskQueue").innerHTML = "<div class='title'>Microtask Queue</div>" + 
+        microtaskQueue.map(item => `<div class='queue-item'>${item}</div>`).join("");
+      document.getElementById("macrotaskQueue").innerHTML = "<div class='title'>Macrotask Queue</div>" + 
+        macrotaskQueue.map(item => `<div class='queue-item'>${item}</div>`).join("");
+      document.getElementById("eventLoop").innerHTML = "<div class='title'>Event Loop</div>" + 
+        (eventLoopTask ? `<div class='queue-item'>${eventLoopTask}</div>` : "");
+    }
+
+    // Highlight a specific code line (lineNumber is 1-indexed).
+    function highlightCode(lineNumber) {
+      codeContainer.innerHTML = originalCodeLines.map((line, index) => {
+        return (index === lineNumber - 1) ? `<span class="highlight">${line}</span>` : line;
+      }).join("\n");
+    }
+
+    // Helpers for managing execution contexts.
+    function pushContext(name, line) {
+      let ctx = { name: name, memory: [], execution: [] };
+      callStack.push(ctx);
+      highlightCode(line);
+      updateUI();
+    }
+    function popContext() {
+      callStack.pop();
+      updateUI();
+    }
+    function updateContextMemory(detail) {
+      if(callStack.length) {
+        callStack[callStack.length - 1].memory.push(detail);
+        updateUI();
+      }
+    }
+    function updateContextExecution(detail) {
+      if(callStack.length) {
+        callStack[callStack.length - 1].execution.push(detail);
+        updateUI();
+      }
+    }
+
+    // Helpers for task queues and event loop.
+    function addMicrotask(task) {
+      microtaskQueue.push(task);
+      updateUI();
+    }
+    function addMacrotask(task) {
+      macrotaskQueue.push(task);
+      updateUI();
+    }
+    function clearEventLoopTask() {
+      eventLoopTask = "";
+      updateUI();
+    }
+
+    // Simulation Steps.
+    // 1. Global Execution Context Memory Allocation.
+    steps.push(() => {
+      pushContext("Global Execution", 1);
+      updateContextMemory("name = undefined");
+      updateContextMemory("y() = function y(username = name) { ... }");
+      updateContextMemory("promiseObj = undefined");
+      updateContextMemory("setTimeout = native code");
+      console.log("Global context created with hoisted declarations");
+    });
+    // 2. Execute 'let name = "Apoorva"' (line 1) → update memory.
+    steps.push(() => { 
+      highlightCode(1);
+      updateContextExecution("Executed: let name = 'Apoorva'");
+      updateContextMemory("name updated to 'Apoorva'");
+      console.log("name updated to 'Apoorva'");
+    });
+    // 3. Execute console.log("one") (line 2).
+    steps.push(() => { 
+      highlightCode(2);
+      updateContextExecution("Executed: console.log('one') → Output: one");
+      console.log("one");
+    });
+    // 4. Call y() with default parameter (line 8).
+    steps.push(() => { 
+      pushContext("y()", 8);
+      updateContextExecution("Entering y() function");
+      updateContextMemory("Parameter: username = undefined");
+      console.log("y() called with default parameter");
+    });
+    // 5. In y(), assign default value to username.
+    steps.push(() => { 
+      updateContextExecution("Default parameter applied");
+      updateContextMemory("Parameter: username updated to 'Apoorva'");
+      console.log("Default parameter 'Apoorva' assigned");
+    });
+    // 6. In y(), execute console.log(username) (line 5).
+    steps.push(() => { 
+      highlightCode(5);
+      updateContextExecution("Executing: console.log(username) → Output: Apoorva");
+      console.log("Apoorva");
+    });
+    // 7. End y() call.
+    steps.push(() => { 
+      popContext();
+      console.log("Exiting y()");
+    });
+    // 8. Execute Promise executor (line 10).
+    steps.push(() => { 
+      pushContext("Promise Executor", 10);
+      updateContextExecution("Executing Promise executor");
+      updateContextMemory("num = 75");  // fixed value for demo
+      if (75 > 50) {
+        updateContextExecution("Promise resolved → Microtask added");
+        addMicrotask("Promise then() callback");
+        console.log("Promise resolved");
+      } else {
+        updateContextExecution("Promise rejected → Microtask added");
+        addMicrotask("Promise catch() callback");
+        console.log("Promise rejected");
+      }
+      popContext();
+    });
+    // 9. Schedule setTimeout (line 25) → add macrotask.
+    steps.push(() => { 
+      addMacrotask("xoxo() callback");
+      console.log("setTimeout scheduled");
+    });
+    // 10. Call y("Rajgopal") (line 29).
+    steps.push(() => { 
+      pushContext("y('Rajgopal')", 29);
+      updateContextExecution("Entering y() with argument 'Rajgopal'");
+      updateContextMemory("Parameter: username = undefined");
+      console.log("y('Rajgopal') called");
+    });
+    // 11. In y("Rajgopal"), assign parameter value.
+    steps.push(() => { 
+      updateContextExecution("Parameter updated");
+      updateContextMemory("Parameter: username updated to 'Rajgopal'");
+      console.log("Parameter 'Rajgopal' assigned");
+    });
+    // 12. In y("Rajgopal"), execute console.log(username) (line 5).
+    steps.push(() => { 
+      highlightCode(5);
+      updateContextExecution("Executing: console.log(username) → Output: Rajgopal");
+      console.log("Rajgopal");
+    });
+    // 13. End y("Rajgopal") call.
+    steps.push(() => { 
+      popContext();
+      console.log("Exiting y('Rajgopal')");
+    });
+    // 14. Execute console.log("three") (line 31).
+    steps.push(() => { 
+      highlightCode(31);
+      updateContextExecution("Executed: console.log('three') → Output: three");
+      console.log("three");
+    });
+    // 15. Synchronous code finished; Global Execution remains.
+    steps.push(() => { 
+      console.log("Synchronous code finished");
+      updateUI();
+    });
+    // 16. Process Microtask Queue via Event Loop (simulate Promise then() callback at line 20).
+    steps.push(() => {
+      if (microtaskQueue.length > 0) {
+        let task = microtaskQueue.shift();
+        // Explicitly highlight line 20 to show the microtask callback.
+        highlightCode(20);
+        eventLoopTask = task;
+        updateUI();
+        console.log("Processing Microtask:", task);
+      } else {
+        console.log("No Microtasks");
+      }
+    });
+    // 17. Execute the Microtask callback.
+    steps.push(() => {
+      if (eventLoopTask) {
+        pushContext(eventLoopTask, 20);
+        updateContextExecution("Executed: console.log('resolved ran') → Output: resolved ran");
+        console.log("resolved ran");
+        popContext();
+        eventLoopTask = "";
+        updateUI();
+      }
+    });
+    // 18. Process Macrotask Queue via Event Loop (simulate setTimeout callback at line 26).
+    steps.push(() => {
+      if (macrotaskQueue.length > 0) {
+        let task = macrotaskQueue.shift();
+        // Explicitly highlight line 26 for the macrotask callback.
+        highlightCode(26);
+        eventLoopTask = task;
+        updateUI();
+        console.log("Processing Macrotask:", task);
+      } else {
+        console.log("No Macrotasks");
+      }
+    });
+    // 19. Execute the Macrotask callback.
+    steps.push(() => {
+      if (eventLoopTask) {
+        pushContext(eventLoopTask, 26);
+        updateContextExecution("Executed: console.log('two') → Output: two");
+        console.log("two");
+        popContext();
+        eventLoopTask = "";
+        updateUI();
+      }
+    });
+    // 20. End Global Execution Context.
+    steps.push(() => { 
+      popContext();
+      console.log("Global Execution Context finished and removed");
+    });
+
+    // Next Step Button Handler.
+    document.getElementById("nextStep").addEventListener("click", () => {
+      if (currentStep < steps.length) {
+        steps[currentStep]();
+        currentStep++;
+      } else {
+        console.log("All steps completed");
+      }
+      updateUI();
+    });
+
+    // Initialize UI.
+    highlightCode(1);
+    updateUI();
+  </script>
+
+</body>
+</html>
